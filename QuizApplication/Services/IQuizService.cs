@@ -13,7 +13,11 @@ namespace QuizApplication.Services
             bool? isActive = null,
             string sortBy = "recent");
 
-        Task<PagedResult<QuizDto>> GetActiveQuizzesAsync(int page, int pageSize);
+        Task<PagedResult<QuizDto>> GetActiveQuizzesAsync(
+            int page,
+            int pageSize,
+            string? search = null,
+            string sortBy = "popular");
 
         Task<QuizDto> GetQuizByIdAsync(int id);
 

@@ -11,7 +11,8 @@ namespace QuizApplication.Services
             int page,
             int pageSize,
             string? search = null,
-            QuestionType? questionType = null);
+            QuestionType? questionType = null,
+            QuestionAssignmentStatus assignmentStatus = QuestionAssignmentStatus.ALL);
 
         Task<PagedResult<QuestionDto>> GetUnassignedQuestionsAsync(int page, int pageSize);
         Task<PagedResult<QuestionDto>> GetQuestionsByActiveQuizIdAsync(int quizId, int page, int pageSize);

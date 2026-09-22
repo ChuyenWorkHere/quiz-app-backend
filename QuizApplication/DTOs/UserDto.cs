@@ -9,6 +9,9 @@ namespace QuizApplication.DTOs
         public string FullName { get; set; }
         public string Username { get; set; }
         public string Email { get; set; }
+        public string? Phone { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+        public string? Avatar { get; set; }
         public UserStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
 

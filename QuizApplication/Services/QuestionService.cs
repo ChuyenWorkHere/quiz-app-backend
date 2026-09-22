@@ -94,16 +94,41 @@ namespace QuizApplication.Services
             };
         }
 
-        public Task<bool> DeleteQuestionAsync(int id)
+        public async Task<bool> DeleteQuestionAsync(int id)
         {
-            throw new NotImplementedException();
+            Question? question = await _context.Questions
+                .Include(q => q.Quiz)
+                .FirstOrDefaultAsync(q => q.Id == id);
+
+            if (question == null)
+                throw new NotFoundException("Question not found");
+
+            bool hasStudentAnswers = await _context.UserAnswers
+                .AnyAsync(userAnswer => userAnswer.QuestionId == id);
+            if (hasStudentAnswers)
+                throw new BadRequestException(
+                    "This question cannot be deleted because it already has student answers");
+
+            if (question.QuizId.HasValue && question.Quiz?.IsActive == true)
+            {
+                int questionCount = await _context.Questions
+                    .CountAsync(item => item.QuizId == question.QuizId);
+                if (questionCount <= 1)
+                    throw new BadRequestException(
+                        "This question cannot be deleted because it is the last question in an active quiz");
+            }
+
+            _context.Questions.Remove(question);
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         public async Task<PagedResult<QuestionDto>> GetAllQuestionsAsync(
             int page,
             int pageSize,
             string? search = null,
-            QuestionType? questionType = null)
+            QuestionType? questionType = null,
+            QuestionAssignmentStatus assignmentStatus = QuestionAssignmentStatus.ALL)
         {
             if (page <= 0 || pageSize <= 0)
                 throw new BadRequestException("Page size and page number must be greater than 0");
@@ -125,6 +150,11 @@ namespace QuizApplication.Services
 
             if (questionType.HasValue)
                 query = query.Where(q => q.QuestionType == questionType.Value);
+
+            if (assignmentStatus == QuestionAssignmentStatus.ASSIGNED)
+                query = query.Where(q => q.QuizId.HasValue);
+            else if (assignmentStatus == QuestionAssignmentStatus.UNASSIGNED)
+                query = query.Where(q => !q.QuizId.HasValue);
 
             var totalQuestions = await query.CountAsync();
             var questionEntities = await query

@@ -10,6 +10,7 @@ using QuizApplication.Models.Enums;
 using QuizApplication.Services;
 using Scalar.AspNetCore;
 using System.Text;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +38,8 @@ builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IQuizService, QuizService>();
 builder.Services.AddScoped<IQuizAttemptService, QuizAttemptService>();
 builder.Services.AddScoped<IQuestionService, QuestionService>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
+builder.Services.AddScoped<IAdminUserService, AdminUserService>();
 
 builder.Services
     .AddIdentity<User, IdentityRole>()
@@ -68,6 +71,17 @@ builder.Services
                                                             ValidateAudience = true,
                                                             ValidAudience = builder.Configuration["JWT:Audience"],
                                                         };
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                var userManager = context.HttpContext.RequestServices.GetRequiredService<UserManager<User>>();
+                var user = userId == null ? null : await userManager.FindByIdAsync(userId);
+                if (user == null || user.IsActive == UserStatus.LOCKED)
+                    context.Fail("This account is locked");
+            }
+        };
     });
 
 
@@ -97,6 +111,9 @@ app.MapControllers();
 
 using (var scope = app.Services.CreateScope())
 {
+    var dbContext = scope.ServiceProvider.GetRequiredService<QuizDbContext>();
+    await dbContext.Database.MigrateAsync();
+
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
 

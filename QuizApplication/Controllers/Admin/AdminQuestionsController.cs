@@ -27,10 +27,11 @@ namespace QuizApplication.Controllers.Admin
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? search = null,
-            [FromQuery] QuestionType? questionType = null)
+            [FromQuery] QuestionType? questionType = null,
+            [FromQuery] QuestionAssignmentStatus assignmentStatus = QuestionAssignmentStatus.ALL)
         {
             PagedResult<QuestionDto> response =
-                await _questionService.GetAllQuestionsAsync(page, pageSize, search, questionType);
+                await _questionService.GetAllQuestionsAsync(page, pageSize, search, questionType, assignmentStatus);
 
             return Ok(response);
         }
@@ -84,6 +85,13 @@ namespace QuizApplication.Controllers.Admin
             QuestionDto? response = await _questionService.UpdateQuestionAsync(id, request);
             if (response == null) throw new QuizApplication.Exceptions.NotFoundException("Question not found");
             return Ok(response);
+        }
+
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> DeleteQuestion([FromRoute] int id)
+        {
+            await _questionService.DeleteQuestionAsync(id);
+            return NoContent();
         }
     }
 }

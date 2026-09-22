@@ -23,9 +23,14 @@ namespace QuizApplication.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetActiveQuizzes([FromQuery] int page, [FromQuery] int pageSize)
+        public async Task<IActionResult> GetActiveQuizzes(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 6,
+            [FromQuery] string? search = null,
+            [FromQuery] string sortBy = "popular")
         {
-            PagedResult<QuizDto> responses = await _quizService.GetActiveQuizzesAsync(page, pageSize);
+            PagedResult<QuizDto> responses =
+                await _quizService.GetActiveQuizzesAsync(page, pageSize, search, sortBy);
             return Ok(responses);
         }
 

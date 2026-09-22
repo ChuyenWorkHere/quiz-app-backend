@@ -7,6 +7,7 @@ using QuizApplication.DTOs.Requests;
 using QuizApplication.DTOs.Responses;
 using QuizApplication.Exceptions;
 using QuizApplication.Models;
+using QuizApplication.Models.Enums;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -38,6 +39,9 @@ namespace QuizApplication.Services
             {
                 throw new NotFoundException("User not found");
             }
+
+            if (user.IsActive == UserStatus.LOCKED)
+                throw new UnauthorizedAccessException("This account is locked");
 
             if (user != null && !await _userManager.CheckPasswordAsync(user, requestDto.Password))
             {
@@ -72,6 +76,7 @@ namespace QuizApplication.Services
                 SecurityStamp = new Guid().ToString(),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
+                IsActive = UserStatus.ACTIVE,
             };
 
             var result = await _userManager.CreateAsync(newUser, requestDto.Password);
@@ -139,6 +144,9 @@ namespace QuizApplication.Services
                     FullName = user.FullName,
                     Username = user.UserName,
                     Email = user.Email,
+                    Phone = user.PhoneNumber,
+                    DateOfBirth = user.DateOfBirth,
+                    Avatar = user.Avatar,
                     Status = user.IsActive,
                     CreatedAt = DateTime.Now,
                     UpdatedAt = user.UpdatedAt,

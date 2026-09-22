@@ -141,9 +141,55 @@ namespace QuizApplication.Services
             return await GetPagedQuizzesAsync(page, pageSize, activeOnly: false, search, isActive, sortBy);
         }
 
-        public async Task<PagedResult<QuizDto>> GetActiveQuizzesAsync(int page, int pageSize)
+        public async Task<PagedResult<QuizDto>> GetActiveQuizzesAsync(
+            int page,
+            int pageSize,
+            string? search = null,
+            string sortBy = "popular")
         {
-            return await GetPagedQuizzesAsync(page, pageSize, activeOnly: true);
+            if (pageSize <= 0 || page <= 0)
+                throw new BadRequestException("Page size and page number must be greater than 0");
+
+            IQueryable<Quiz> query = _context.Quizzes
+                .AsNoTracking()
+                .Where(q => q.IsActive);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                string keyword = search.Trim();
+                query = query.Where(q =>
+                    q.Title.Contains(keyword) || q.Description.Contains(keyword));
+            }
+
+            query = sortBy.Trim().ToLowerInvariant() switch
+            {
+                "popular" => query.OrderByDescending(q => q.QuizAttempts.Count),
+                "duration" => query.OrderBy(q => q.Duration),
+                "recent" => query.OrderByDescending(q => q.CreatedAt),
+                "rated" => query.OrderByDescending(q => q.QuizAttempts.Count == 0
+                    ? 0
+                    : q.QuizAttempts.Count(a => a.Score >= q.PassedScore) * 1.0 / q.QuizAttempts.Count),
+                _ => throw new BadRequestException(
+                    "Sort by must be popular, duration, recent, or rated")
+            };
+
+            int totalItems = await query.CountAsync();
+            int totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+            List<Quiz> quizEntities = await query
+                .Include(q => q.Questions)
+                .Include(q => q.QuizAttempts)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            return new PagedResult<QuizDto>
+            {
+                Items = quizEntities.Select(MapToQuizDto).ToList(),
+                TotalItems = totalItems,
+                TotalPages = totalPages,
+                Page = page,
+                PageSize = pageSize
+            };
         }
 
         private async Task<PagedResult<QuizDto>> GetPagedQuizzesAsync(
@@ -281,7 +327,7 @@ namespace QuizApplication.Services
         {
             var attempts = quiz.QuizAttempts.Count();
             var passedPercentage = attempts == 0 ? 0
-                : quiz.QuizAttempts.Count(a => a.Score > quiz.PassedScore);
+                : (int)(quiz.QuizAttempts.Count(a => a.Score >= quiz.PassedScore) * 1.0 / attempts * 100);
 
             return new QuizDto
             {
